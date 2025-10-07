@@ -16,26 +16,53 @@ pip install -r requirements.txt
 
 ### Utilização via linha de comando
 
-```bash
-python run_agent.py \
-  --yolo /caminho/para/yolov8.pt \
-  --detr /caminho/para/detr.pth \
-  --faster-rcnn /caminho/para/faster_rcnn.pth \
-  --image /caminho/para/imagem.png
-```
+### Onde informar os modelos treinados
 
-Também é possível executar o agente em um diretório com múltiplas imagens usando a flag `--dataset`:
+Os pesos dos modelos **não** precisam ser copiados para dentro do repositório. Basta informar o caminho
+para cada arquivo `.pt`/`.pth` na hora de executar o script de inferência. Você pode fazer isso de duas formas:
 
-```bash
-python run_agent.py \
-  --yolo /caminho/para/yolov8.pt \
-  --detr /caminho/para/detr.pth \
-  --faster-rcnn /caminho/para/faster_rcnn.pth \
-  --dataset /caminho/para/pasta_de_testes \
-  --output resultados.json
-```
+1. **Passando os argumentos diretamente na linha de comando**, como nos exemplos abaixo. Substitua os caminhos
+   pelos locais onde seus arquivos realmente estão salvos (disco local, pendrive, volume montado, etc.).
 
-Parâmetros adicionais:
+   ```bash
+   python run_agent.py \
+     --yolo /caminho/para/yolov8.pt \
+     --detr /caminho/para/detr.pth \
+     --faster-rcnn /caminho/para/faster_rcnn.pth \
+     --image /caminho/para/imagem.png
+   ```
+
+   Para avaliar um diretório inteiro:
+
+   ```bash
+   python run_agent.py \
+     --yolo /caminho/para/yolov8.pt \
+     --detr /caminho/para/detr.pth \
+     --faster-rcnn /caminho/para/faster_rcnn.pth \
+     --dataset /caminho/para/pasta_de_testes \
+     --output resultados.json
+   ```
+
+2. **Criando um pequeno script de configuração próprio** (opcional) onde você instancia o agente e informa os
+   caminhos apenas uma vez. Exemplo:
+
+   ```python
+   from lung_nodule_agent import YOLOv8Adapter, DETRAdapter, FasterRCNNAdapter, LungNoduleDecisionAgent
+
+   adapters = [
+       YOLOv8Adapter("/caminho/para/yolov8.pt"),
+       DETRAdapter("/caminho/para/detr.pth"),
+       FasterRCNNAdapter("/caminho/para/faster_rcnn.pth"),
+   ]
+   agent = LungNoduleDecisionAgent(adapters)
+   resultado = agent.predict("/caminho/para/imagem.png")
+   print(resultado.to_dict())
+   ```
+
+   Salve esse exemplo em um arquivo (por exemplo, `meu_agente.py`) e execute com `python meu_agente.py`. Assim,
+   você concentra os caminhos dos modelos em um único lugar caso não queira digitá-los sempre.
+
+Parâmetros adicionais do CLI:
 
 - `--confidence-threshold`: limiar mínimo de confiança para considerar uma detecção individual (padrão 0.25).
 - `--vote-threshold`: número mínimo de modelos que devem concordar para o veredito "Provável presença de nódulo".
