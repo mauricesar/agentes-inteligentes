@@ -66,3 +66,12 @@ Parâmetros adicionais do CLI:
 
 O resultado é salvo em JSON (arquivo especificado em `--output` ou impresso no terminal), incluindo as
 detecções individuais de cada modelo e as detecções agregadas pelo agente.
+
+#### Compatibilidade com versões do TorchVision
+
+Algumas versões mais antigas do TorchVision não expõem as mesmas assinaturas dos construtores usados
+pelos adaptadores. Caso receba erros do tipo `cannot import name 'detr_resnet50'` ou mensagens indicando
+parâmetros desconhecidos (`weights`/`pretrained`), atualize para **torchvision 0.13 ou superior**. As
+últimas alterações no agente tentam detectar automaticamente essas diferenças, mas, se o pacote estiver
+muito desatualizado, é recomendado atualizar (`pip install --upgrade torchvision`) ou fornecer seu próprio
+construtor ao estender os adaptadores.

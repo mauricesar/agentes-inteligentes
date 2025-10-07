@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import inspect
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -80,6 +81,23 @@ class YOLOv8Adapter(BaseModelAdapter):
         return DetectionResult(boxes=boxes, scores=scores, labels=labels, model_name=self.model_path.stem)
 
 
+def _instantiate_torchvision_model(model_fn, num_classes: Optional[int]):
+    """Cria o modelo tratando diferenças de assinatura entre versões do TorchVision."""
+
+    kwargs = {}
+    signature = inspect.signature(model_fn)
+    parameters = signature.parameters
+
+    if num_classes is not None and "num_classes" in parameters:
+        kwargs["num_classes"] = num_classes
+    if "weights" in parameters:
+        kwargs["weights"] = None
+    elif "pretrained" in parameters:
+        kwargs["pretrained"] = False
+
+    return model_fn(**kwargs)
+
+
 class _TorchVisionDetectionAdapter(BaseModelAdapter):
     """Classe base para modelos TorchVision."""
 
@@ -92,7 +110,11 @@ class _TorchVisionDetectionAdapter(BaseModelAdapter):
         num_classes: Optional[int] = None,
     ):
         super().__init__(model_path, confidence_threshold, device)
-        self.model = model_ctor(num_classes=num_classes) if num_classes is not None else model_ctor()
+        self.model = (
+            model_ctor(num_classes=num_classes)
+            if num_classes is not None
+            else model_ctor()
+        )
         checkpoint = torch.load(self.model_path, map_location="cpu")
         if "model_state" in checkpoint:
             state_dict = checkpoint["model_state"]
@@ -123,14 +145,43 @@ class _TorchVisionDetectionAdapter(BaseModelAdapter):
         return DetectionResult(boxes=boxes, scores=scores, labels=labels, model_name=self.model_path.stem)
 
 
+def _import_detr_resnet50():
+    """Tenta resolver a função ``detr_resnet50`` em diferentes versões do TorchVision."""
+
+    errors = []
+    try:  # TorchVision >= 0.14
+        from torchvision.models.detection import detr_resnet50  # type: ignore[attr-defined]
+
+        return detr_resnet50
+    except ImportError as exc:  # pragma: no cover - depende da versão instalada
+        errors.append(str(exc))
+
+    try:  # TorchVision 0.13 usa um submódulo dedicado
+        from torchvision.models.detection.detr import detr_resnet50  # type: ignore[attr-defined]
+
+        return detr_resnet50
+    except ImportError as exc:  # pragma: no cover - depende da versão instalada
+        errors.append(str(exc))
+
+    joined = " | ".join(errors)
+    raise ImportError(
+        "Não foi possível localizar `detr_resnet50` no TorchVision instalado. "
+        "Atualize para torchvision>=0.13 ou forneça manualmente um construtor DETR personalizado. "
+        "Erros encontrados: "
+        f"{joined}"
+    )
+
+
 class DETRAdapter(_TorchVisionDetectionAdapter):
     """Adaptador para modelos DETR fine-tunados."""
 
     def __init__(self, model_path: str, confidence_threshold: float = 0.25, device: Optional[str] = None, num_classes: int = 2):
-        from torchvision.models.detection import detr_resnet50
+        detr_resnet50 = _import_detr_resnet50()
 
         super().__init__(
-            model_ctor=lambda num_classes=num_classes: detr_resnet50(weights=None, num_classes=num_classes),
+            model_ctor=lambda num_classes=num_classes: _instantiate_torchvision_model(
+                detr_resnet50, num_classes
+            ),
             model_path=model_path,
             confidence_threshold=confidence_threshold,
             device=device,
@@ -154,7 +205,9 @@ class FasterRCNNAdapter(_TorchVisionDetectionAdapter):
         if backbone != "resnet50":  # pragma: no cover - placeholder para extensões futuras
             raise ValueError("Atualmente apenas o backbone resnet50 é suportado para o adaptador padrão.")
         super().__init__(
-            model_ctor=lambda num_classes=num_classes: fasterrcnn_resnet50_fpn(weights=None, num_classes=num_classes),
+            model_ctor=lambda num_classes=num_classes: _instantiate_torchvision_model(
+                fasterrcnn_resnet50_fpn, num_classes
+            ),
             model_path=model_path,
             confidence_threshold=confidence_threshold,
             device=device,
