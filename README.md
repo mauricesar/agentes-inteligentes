@@ -1,7 +1,3 @@
-# agentes-inteligentes
-
-Repositório criado para armazenar o progresso do conteúdo prático da disciplina de Agentes Inteligentes.
-
 ## Agente decisor para nódulos pulmonares
 
 O diretório `lung_nodule_agent` contém um agente capaz de combinar três modelos de detecção de nódulos
