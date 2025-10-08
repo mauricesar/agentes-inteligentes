@@ -33,12 +33,12 @@ from lung_nodule_agent import (
 # ---------------------------------------------------------------------------
 # CONFIGURAÇÕES
 # ---------------------------------------------------------------------------
-YOLOV8_WEIGHTS = Path("/caminho/para/seu_modelo_yolov8.pt")
-DETR_WEIGHTS = Path("/caminho/para/seu_modelo_detr.pth")
-FASTER_RCNN_WEIGHTS = Path("/caminho/para/seu_modelo_faster_rcnn.pth")
+YOLOV8_WEIGHTS = Path("C:/Users/Mauricésar/Desktop/extracao/yolov8/best_model.pt")
+#DETR_WEIGHTS = Path("/caminho/para/seu_modelo_detr.pth")
+FASTER_RCNN_WEIGHTS = Path("C:/Users/Mauricésar/Desktop/extracao/fasterrcnn/fasterrcnn/fasterrcnn_resnet50_fpn_best.pth")
 
 # Defina o caminho para uma imagem individual OU para um diretório de imagens.
-IMAGE_PATH: Optional[Path] = Path("/caminho/para/uma_imagem.png")
+IMAGE_PATH: Optional[Path] = Path("C:/Users/Mauricésar/Desktop/extracao/validate/images/2a2d24f9e9397ea669cf6ec9f850c367.png")
 DATASET_DIR: Optional[Path] = None  # Exemplo: Path("/caminho/para/pasta_de_testes")
 
 # Arquivo onde os feedbacks serão registrados automaticamente.
@@ -68,11 +68,11 @@ def main() -> None:
             "Configure apenas IMAGE_PATH ou DATASET_DIR. Ambos definidos ao mesmo tempo não são suportados."
         )
 
-    _validate_paths([YOLOV8_WEIGHTS, DETR_WEIGHTS, FASTER_RCNN_WEIGHTS])
+    _validate_paths([YOLOV8_WEIGHTS, FASTER_RCNN_WEIGHTS]) #[[YOLOV8_WEIGHTS, DETR_WEIGHTS, FASTER_RCNN_WEIGHTS]]
 
     adapters = [
         YOLOv8Adapter(YOLOV8_WEIGHTS),
-        DETRAdapter(DETR_WEIGHTS),
+        #DETRAdapter(DETR_WEIGHTS),
         FasterRCNNAdapter(FASTER_RCNN_WEIGHTS),
     ]
 
@@ -87,7 +87,7 @@ def main() -> None:
     metadata = {
         "models": {
             "yolov8": str(YOLOV8_WEIGHTS),
-            "detr": str(DETR_WEIGHTS),
+            #"detr": str(DETR_WEIGHTS),
             "faster_rcnn": str(FASTER_RCNN_WEIGHTS),
         },
         "iou_threshold": IOU_THRESHOLD,
