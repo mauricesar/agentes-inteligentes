@@ -1,6 +1,6 @@
 """Pacote para integração de modelos de detecção de nódulos pulmonares."""
 
-from .decision_agent import LungNoduleDecisionAgent, AgentDecision
+from .decision_agent import LungNoduleDecisionAgent, AgentDecision, export_feedback
 from .models import (
     BaseModelAdapter,
     YOLOv8Adapter,
@@ -12,6 +12,7 @@ from .models import (
 __all__ = [
     "LungNoduleDecisionAgent",
     "AgentDecision",
+    "export_feedback",
     "BaseModelAdapter",
     "YOLOv8Adapter",
     "DETRAdapter",

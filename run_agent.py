@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 from lung_nodule_agent import (
     BaseModelAdapter,
@@ -13,6 +13,7 @@ from lung_nodule_agent import (
     FasterRCNNAdapter,
     LungNoduleDecisionAgent,
     YOLOv8Adapter,
+    export_feedback,
 )
 
 
@@ -31,6 +32,19 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=str,
         help="Arquivo JSON opcional para salvar o resultado.",
+    )
+    parser.add_argument(
+        "--log-feedback",
+        type=str,
+        help=(
+            "Arquivo JSONL para registrar a execução (útil para versionar ou "
+            "compartilhar histórico de testes)."
+        ),
+    )
+    parser.add_argument(
+        "--feedback-note",
+        type=str,
+        help="Observação opcional a ser registrada junto ao feedback (ex.: condições do teste).",
     )
     parser.add_argument(
         "--confidence-threshold",
@@ -74,19 +88,45 @@ def build_agent(args: argparse.Namespace) -> LungNoduleDecisionAgent:
 def main() -> None:
     args = parse_args()
     agent = build_agent(args)
-    outputs = []
+    decisions = []
     if args.image:
         decision = agent.predict(args.image)
-        outputs.append(decision.to_dict())
+        decisions.append(decision)
     if args.dataset:
-        decisions = agent.evaluate_directory(args.dataset)
-        outputs.extend(decision.to_dict() for decision in decisions)
-    if not outputs:
+        decisions.extend(agent.evaluate_directory(args.dataset))
+    if not decisions:
         raise SystemExit("Informe --image ou --dataset para executar a inferência.")
+    outputs = [decision.to_dict() for decision in decisions]
     if args.output:
         Path(args.output).write_text(json.dumps(outputs, indent=2, ensure_ascii=False))
     else:
         print(json.dumps(outputs, indent=2, ensure_ascii=False))
+    if args.log_feedback:
+        metadata: Dict[str, object] = {
+            "models": {
+                key: value
+                for key, value in {
+                    "yolo": args.yolo,
+                    "detr": args.detr,
+                    "faster_rcnn": args.faster_rcnn,
+                }.items()
+                if value
+            },
+            "inputs": {
+                "image": args.image,
+                "dataset": args.dataset,
+            },
+            "parameters": {
+                "confidence_threshold": args.confidence_threshold,
+                "vote_threshold": args.vote_threshold,
+                "iou_threshold": args.iou_threshold,
+            },
+        }
+        if args.output:
+            metadata["output_file"] = args.output
+        if args.feedback_note:
+            metadata["note"] = args.feedback_note
+        export_feedback(decisions, args.log_feedback, metadata=metadata)
 
 
 if __name__ == "__main__":

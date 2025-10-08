@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+import json
 from pathlib import Path
 from statistics import mean
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 import numpy as np
 from PIL import Image
@@ -200,3 +202,41 @@ class LungNoduleDecisionAgent:
             "Considere revisão manual."
         )
         return "Inconclusivo", float(confidence), explanation
+
+
+def export_feedback(
+    decisions: Sequence[AgentDecision],
+    destination: str | Path,
+    metadata: Optional[Mapping[str, Any]] = None,
+    append: bool = True,
+) -> None:
+    """Registra as decisões do agente em um arquivo JSON/JSONL.
+
+    Args:
+        decisions: Coleção de decisões produzidas pelo agente.
+        destination: Caminho do arquivo que receberá o log.
+        metadata: Informações adicionais sobre a execução (ex.: caminhos
+            dos modelos, parâmetros ou notas do operador).
+        append: Quando ``True`` (padrão) adiciona a entrada ao final do arquivo
+            em formato JSONL; quando ``False`` sobrescreve o arquivo com um
+            único objeto JSON contendo a execução.
+    """
+
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "metadata": metadata or {},
+        "decisions": [decision.to_dict() for decision in decisions],
+    }
+
+    path = Path(destination)
+    if path.parent and not path.parent.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+    if append:
+        mode = "a" if path.exists() else "w"
+        with path.open(mode, encoding="utf-8") as file:
+            file.write(json.dumps(entry, ensure_ascii=False))
+            file.write("\n")
+    else:
+        with path.open("w", encoding="utf-8") as file:
+            json.dump(entry, file, indent=2, ensure_ascii=False)

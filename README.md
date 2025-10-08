@@ -36,7 +36,9 @@ para cada arquivo `.pt`/`.pth` na hora de executar o script de inferência. Voc�
      --detr /caminho/para/detr.pth \
      --faster-rcnn /caminho/para/faster_rcnn.pth \
      --dataset /caminho/para/pasta_de_testes \
-     --output resultados.json
+     --output resultados.json \
+     --log-feedback feedbacks.jsonl \
+     --feedback-note "Execução em 05/06/2024"
    ```
 
 2. **Criando um pequeno script de configuração próprio** (opcional) onde você instancia o agente e informa os
@@ -57,6 +59,26 @@ para cada arquivo `.pt`/`.pth` na hora de executar o script de inferência. Voc�
 
    Salve esse exemplo em um arquivo (por exemplo, `meu_agente.py`) e execute com `python meu_agente.py`. Assim,
    você concentra os caminhos dos modelos em um único lugar caso não queira digitá-los sempre.
+
+### Registrando feedbacks e resultados para versionamento
+
+Para guardar o histórico das execuções (e fazer upload no GitHub, se desejar), utilize a opção `--log-feedback`.
+Ela cria ou atualiza um arquivo no formato **JSON Lines** (`.jsonl`) com todas as decisões do agente, incluindo
+os caminhos dos modelos, parâmetros e uma anotação opcional (`--feedback-note`). Cada linha representa uma
+execução e pode ser facilmente versionada.
+
+Você também pode chamar programaticamente a função `export_feedback`:
+
+```python
+from lung_nodule_agent import export_feedback
+
+decisions = agent.evaluate_directory("/caminho/pasta_testes")
+export_feedback(
+    decisions,
+    "feedbacks.jsonl",
+    metadata={"note": "Rodada de validação local"},
+)
+```
 
 Parâmetros adicionais do CLI:
 
