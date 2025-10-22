@@ -1,3 +1,5 @@
+Repositório criado para armazenar o progresso do conteúdo prático da disciplina de Agentes Inteligentes.
+
 ## Agente decisor para nódulos pulmonares
 
 O diretório `lung_nodule_agent` contém um agente capaz de combinar três modelos de detecção de nódulos
@@ -59,6 +61,29 @@ para cada arquivo `.pt`/`.pth` na hora de executar o script de inferência. Voc�
 
    Salve esse exemplo em um arquivo (por exemplo, `meu_agente.py`) e execute com `python meu_agente.py`. Assim,
    você concentra os caminhos dos modelos em um único lugar caso não queira digitá-los sempre.
+
+### Salvando evidências visuais
+
+Além dos JSONs, é possível produzir imagens anotadas que servem como comprovação visual das detecções. Há duas
+formas principais de habilitar esse recurso:
+
+1. **Na linha de comando**, informe `--visualizations-dir /caminho/saidas`. O script criará automaticamente
+   subdiretórios com o nome de cada modelo (`<nome_do_modelo>/`) e outro chamado `fusion/`. Cada subpasta receberá
+   uma cópia da radiografia com as caixas previstas pelo respectivo modelo; a pasta `fusion/` contém a imagem com
+   todas as detecções agregadas pelo agente.
+
+   ```bash
+   python run_agent.py \
+     --yolo /caminho/para/yolov8.pt \
+     --detr /caminho/para/detr.pth \
+     --faster-rcnn /caminho/para/faster_rcnn.pth \
+     --dataset /caminho/para/pasta_de_testes \
+     --visualizations-dir saidas_visuais
+   ```
+
+2. **No script `meu_agente.py`**, ajuste a constante `VISUALIZATIONS_DIR` para apontar o diretório desejado
+   (ou defina-a como `None` para desabilitar a exportação). A chamada ao agente produzirá as mesmas pastas por
+   modelo e a imagem da fusão automaticamente.
 
 ### Registrando feedbacks e resultados para versionamento
 

@@ -7,10 +7,10 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 from statistics import mean
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from .models import BaseModelAdapter, DetectionResult
 
@@ -240,3 +240,184 @@ def export_feedback(
     else:
         with path.open("w", encoding="utf-8") as file:
             json.dump(entry, file, indent=2, ensure_ascii=False)
+
+
+def save_visualizations(
+    decisions: Sequence[AgentDecision],
+    destination: str | Path,
+    fusion_subdir: str = "fusion",
+    line_width: int = 3,
+) -> None:
+    """Gera imagens anotadas com as detecções individuais e agregadas.
+
+    Para cada decisão, cria uma cópia anotada da imagem original em um diretório com o
+    nome do modelo que originou as caixas. Uma imagem adicional contendo as detecções
+    fundidas é salva dentro do subdiretório definido em ``fusion_subdir``.
+
+    Args:
+        decisions: Coleção de decisões retornadas pelo agente.
+        destination: Diretório raiz onde as imagens anotadas serão criadas.
+        fusion_subdir: Nome da pasta que armazenará as anotações da fusão.
+        line_width: Espessura das caixas desenhadas nas imagens resultantes.
+    """
+
+    root = Path(destination)
+    root.mkdir(parents=True, exist_ok=True)
+
+    for decision in decisions:
+        image_path = Path(decision.image_path)
+        if not image_path.exists():
+            raise FileNotFoundError(
+                f"Imagem original {decision.image_path} não encontrada para gerar visualizações."
+            )
+
+        with Image.open(image_path) as original:
+            base_image = original.convert("RGB")
+
+        image_name = image_path.name
+
+        for model_name, result in decision.model_results.items():
+            model_dir = root / model_name
+            model_dir.mkdir(parents=True, exist_ok=True)
+            annotated = _draw_detections(
+                base_image.copy(),
+                result.boxes,
+                result.scores,
+                result.labels,
+                color=(255, 0, 0),
+                label_builder=lambda score, label: f"score={score:.2f} label={label}",
+                line_width=line_width,
+            )
+            annotated.save(model_dir / image_name)
+
+        fusion_dir = root / fusion_subdir
+        fusion_dir.mkdir(parents=True, exist_ok=True)
+        fused_image = base_image.copy()
+        fused_image = _draw_aggregated(
+            fused_image,
+            decision.aggregated_detections,
+            line_width=line_width,
+        )
+        fused_image.save(fusion_dir / image_name)
+
+
+def _draw_detections(
+    image: Image.Image,
+    boxes: np.ndarray,
+    scores: np.ndarray,
+    labels: np.ndarray,
+    *,
+    color: tuple[int, int, int],
+    label_builder: Callable[[float, int], str],
+    line_width: int,
+) -> Image.Image:
+    draw = ImageDraw.Draw(image)
+    font = _load_font()
+
+    for box, score, label in zip(boxes, scores, labels):
+        x1, y1, x2, y2 = map(float, box)
+        draw.rectangle([(x1, y1), (x2, y2)], outline=color, width=line_width)
+        caption = label_builder(float(score), int(label))
+        if caption and font is not None:
+            _draw_label(
+                draw,
+                font,
+                caption,
+                x1,
+                y1,
+                background_color=color,
+                text_color=(255, 255, 255),
+            )
+
+    return image
+
+
+def _draw_aggregated(
+    image: Image.Image,
+    detections: Sequence[AggregatedDetection],
+    *,
+    line_width: int,
+) -> Image.Image:
+    draw = ImageDraw.Draw(image)
+    font = _load_font()
+
+    for det in detections:
+        x1, y1, x2, y2 = map(float, det.box)
+        draw.rectangle([(x1, y1), (x2, y2)], outline=(46, 204, 113), width=line_width)
+        if font is not None:
+            models = ", ".join(det.supporting_models)
+            caption = f"score={det.score:.2f}"
+            if models:
+                caption += f"\nmodelos: {models}"
+            _draw_label(
+                draw,
+                font,
+                caption,
+                x1,
+                y1,
+                background_color=(46, 204, 113),
+                text_color=(0, 0, 0),
+            )
+
+    return image
+
+
+def _load_font() -> Optional[ImageFont.ImageFont]:
+    try:
+        return ImageFont.load_default()
+    except Exception:  # pragma: no cover - fallback defensivo
+        return None
+
+
+def _draw_label(
+    draw: ImageDraw.ImageDraw,
+    font: ImageFont.ImageFont,
+    caption: str,
+    x1: float,
+    y1: float,
+    *,
+    background_color: tuple[int, int, int],
+    text_color: tuple[int, int, int],
+) -> None:
+    if not caption:
+        return
+
+    lines = caption.split("\n")
+    line_sizes = [_measure_text(font, line) for line in lines]
+    text_width = max((width for width, _ in line_sizes), default=0)
+    text_height = sum((height for _, height in line_sizes))
+    line_spacing = 2
+    padding = 2
+
+    if len(lines) > 1:
+        text_height += line_spacing * (len(lines) - 1)
+
+    text_x = x1
+    text_y = max(0.0, y1 - text_height - padding * 2)
+
+    background = [
+        text_x,
+        text_y,
+        text_x + text_width + padding * 2,
+        text_y + text_height + padding * 2,
+    ]
+    draw.rectangle(background, fill=background_color)
+
+    current_y = text_y + padding
+    for index, (line, (_, height)) in enumerate(zip(lines, line_sizes)):
+        draw.text((text_x + padding, current_y), line, fill=text_color, font=font)
+        current_y += height
+        if index < len(lines) - 1:
+            current_y += line_spacing
+
+
+def _measure_text(font: ImageFont.ImageFont, text: str) -> tuple[int, int]:
+    """Retorna a largura e altura de ``text`` utilizando a ``font`` fornecida."""
+
+    try:
+        left, top, right, bottom = font.getbbox(text)
+        return right - left, bottom - top
+    except AttributeError:
+        # Compatibilidade com versões mais antigas do Pillow que ainda expõem ``getsize``.
+        width, height = font.getsize(text)
+        return int(width), int(height)

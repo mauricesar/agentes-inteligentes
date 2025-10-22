@@ -14,6 +14,7 @@ from lung_nodule_agent import (
     LungNoduleDecisionAgent,
     YOLOv8Adapter,
     export_feedback,
+    save_visualizations,
 )
 
 
@@ -64,6 +65,15 @@ def parse_args() -> argparse.Namespace:
         default=0.5,
         help="IoU mínimo para que detecções de modelos diferentes sejam fundidas.",
     )
+    parser.add_argument(
+        "--visualizations-dir",
+        type=str,
+        help=(
+            "Diretório onde serão salvas imagens anotadas por modelo e a fusão final. "
+            "Serão criados subdiretórios com o nome de cada modelo e um subdiretório adicional "
+            "para a fusão."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -101,6 +111,12 @@ def main() -> None:
         Path(args.output).write_text(json.dumps(outputs, indent=2, ensure_ascii=False))
     else:
         print(json.dumps(outputs, indent=2, ensure_ascii=False))
+    if args.visualizations_dir:
+        save_visualizations(decisions, args.visualizations_dir)
+        print(
+            "Visualizações salvas em: "
+            f"{Path(args.visualizations_dir).resolve()}"
+        )
     if args.log_feedback:
         metadata: Dict[str, object] = {
             "models": {
@@ -124,6 +140,8 @@ def main() -> None:
         }
         if args.output:
             metadata["output_file"] = args.output
+        if args.visualizations_dir:
+            metadata["visualizations_dir"] = args.visualizations_dir
         if args.feedback_note:
             metadata["note"] = args.feedback_note
         export_feedback(decisions, args.log_feedback, metadata=metadata)

@@ -28,6 +28,7 @@ from lung_nodule_agent import (
     LungNoduleDecisionAgent,
     YOLOv8Adapter,
     export_feedback,
+    save_visualizations,
 )
 
 # ---------------------------------------------------------------------------
@@ -42,7 +43,10 @@ IMAGE_PATH: Optional[Path] = Path("C:/Users/Mauricésar/Desktop/extracao/validat
 DATASET_DIR: Optional[Path] = None  # Exemplo: Path("/caminho/para/pasta_de_testes")
 
 # Arquivo onde os feedbacks serão registrados automaticamente.
-FEEDBACK_LOG = Path("feedbacks.jsonl")
+FEEDBACK_LOG = Path("feedbacks2.jsonl")
+
+# Diretório base para salvar visualizações com as caixas desenhadas.
+VISUALIZATIONS_DIR: Optional[Path] = Path("C:/Users\Mauricésar/Desktop/teste/agentes-inteligentes/visualization")
 
 # Ajuste se quiser alterar os limiares usados pelo agente.
 CONFIDENCE_THRESHOLD = 0.25
@@ -68,7 +72,7 @@ def main() -> None:
             "Configure apenas IMAGE_PATH ou DATASET_DIR. Ambos definidos ao mesmo tempo não são suportados."
         )
 
-    _validate_paths([YOLOV8_WEIGHTS, FASTER_RCNN_WEIGHTS]) #[[YOLOV8_WEIGHTS, DETR_WEIGHTS, FASTER_RCNN_WEIGHTS]]
+    _validate_paths([YOLOV8_WEIGHTS, FASTER_RCNN_WEIGHTS]) #_validate_paths([YOLOV8_WEIGHTS, DETR_WEIGHTS, FASTER_RCNN_WEIGHTS])
 
     adapters = [
         YOLOv8Adapter(YOLOV8_WEIGHTS),
@@ -107,10 +111,20 @@ def main() -> None:
     else:
         raise SystemExit("Defina IMAGE_PATH ou DATASET_DIR antes de executar este script.")
 
+    if VISUALIZATIONS_DIR is not None:
+        metadata["visualizations_dir"] = str(VISUALIZATIONS_DIR)
+
     print(json.dumps([decision.to_dict() for decision in decisions], indent=2, ensure_ascii=False))
 
     export_feedback(decisions, FEEDBACK_LOG, metadata=metadata, append=True)
     print(f"Feedback registrado em: {FEEDBACK_LOG.resolve()}")
+
+    if VISUALIZATIONS_DIR is not None:
+        save_visualizations(decisions, VISUALIZATIONS_DIR)
+        print(
+            "Imagens anotadas salvas em: "
+            f"{VISUALIZATIONS_DIR.resolve()}"
+        )
 
 
 if __name__ == "__main__":
