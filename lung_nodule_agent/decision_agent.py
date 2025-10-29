@@ -84,7 +84,7 @@ class LungNoduleDecisionAgent:
         model_results: Dict[str, DetectionResult] = {}
         for adapter in self.model_adapters:
             result = adapter.predict(image)
-            model_results[adapter.model_path.stem] = result
+            model_results[adapter.display_name] = result
         aggregated = self._aggregate(model_results)
         verdict, confidence, explanation = self._decide(aggregated)
         return AgentDecision(
