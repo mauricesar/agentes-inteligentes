@@ -1,10 +1,8 @@
-Repositório criado para armazenar o progresso do conteúdo prático da disciplina de Agentes Inteligentes.
+Repositório criado para registrar o conteúdo prático da disciplina de Agentes Inteligentes.
 
 ## Agente decisor para nódulos pulmonares
 
-O diretório `lung_nodule_agent` contém um agente capaz de combinar três modelos de detecção de nódulos
-pulmonares (YOLOv8, DETR e Faster R-CNN) previamente treinados. O agente realiza a inferência com cada
-modelo, funde as detecções e emite um veredito indicando a presença ou não de regiões suspeitas.
+O diretório `lung_nodule_agent` reúne um agente que combina três detectores de nódulos em radiografias de tórax: YOLOv8, RT-DETR/DETR e Faster R-CNN. Cada adaptador roda a inferência do modelo correspondente, normaliza as saídas e o agente calcula uma fusão para emitir o veredito final.
 
 ### Instalação de dependências
 
@@ -12,15 +10,11 @@ modelo, funde as detecções e emite um veredito indicando a presença ou não d
 pip install -r requirements.txt
 ```
 
-### Utilização via linha de comando
+### Como informar os modelos treinados
 
-### Onde informar os modelos treinados
+Os arquivos de pesos **não** precisam ficar dentro do repositório. Informe o caminho completo de cada arquivo `.pt` ou `.pth` no momento da execução. Duas abordagens são suportadas:
 
-Os pesos dos modelos **não** precisam ser copiados para dentro do repositório. Basta informar o caminho
-para cada arquivo `.pt`/`.pth` na hora de executar o script de inferência. Você pode fazer isso de duas formas:
-
-1. **Passando os argumentos diretamente na linha de comando**, como nos exemplos abaixo. Substitua os caminhos
-   pelos locais onde seus arquivos realmente estão salvos (disco local, pendrive, volume montado, etc.).
+1. **Passar os caminhos na linha de comando.** Substitua os exemplos pelos locais onde você guardou seus checkpoints.
 
    ```bash
    python run_agent.py \
@@ -30,7 +24,7 @@ para cada arquivo `.pt`/`.pth` na hora de executar o script de inferência. Voc�
      --image /caminho/para/imagem.png
    ```
 
-   Para avaliar um diretório inteiro:
+   Para processar um diretório completo:
 
    ```bash
    python run_agent.py \
@@ -43,8 +37,7 @@ para cada arquivo `.pt`/`.pth` na hora de executar o script de inferência. Voc�
      --feedback-note "Execução em 05/06/2024"
    ```
 
-2. **Criando um pequeno script de configuração próprio** (opcional) onde você instancia o agente e informa os
-   caminhos apenas uma vez. Exemplo:
+2. **Criar um script de configuração próprio.** Ele centraliza os caminhos dos pesos para que você não precise digitá-los sempre.
 
    ```python
    from lung_nodule_agent import YOLOv8Adapter, DETRAdapter, FasterRCNNAdapter, LungNoduleDecisionAgent
@@ -59,18 +52,13 @@ para cada arquivo `.pt`/`.pth` na hora de executar o script de inferência. Voc�
    print(resultado.to_dict())
    ```
 
-   Salve esse exemplo em um arquivo (por exemplo, `meu_agente.py`) e execute com `python meu_agente.py`. Assim,
-   você concentra os caminhos dos modelos em um único lugar caso não queira digitá-los sempre.
+   Salve o exemplo como `meu_agente.py` e execute com `python meu_agente.py` depois de ajustar os caminhos.
 
 ### Salvando evidências visuais
 
-Além dos JSONs, é possível produzir imagens anotadas que servem como comprovação visual das detecções. Há duas
-formas principais de habilitar esse recurso:
+O agente pode gerar imagens anotadas para cada modelo e para a fusão. Existem duas formas de habilitar o recurso:
 
-1. **Na linha de comando**, informe `--visualizations-dir /caminho/saidas`. O script criará automaticamente
-   subdiretórios com o nome de cada modelo (por padrão `YOLOv8/`, `DETR/` e `Faster R-CNN/`) e outro chamado `fusion/`.
-   Cada subpasta receberá uma cópia da radiografia com as caixas previstas pelo respectivo modelo; a pasta `fusion/`
-   contém a imagem com todas as detecções agregadas pelo agente.
+1. **Usar o parâmetro `--visualizations-dir` na linha de comando.** O script cria subpastas chamadas `YOLOv8`, `DETR`, `Faster R-CNN` e `fusion` dentro do diretório informado. Cada imagem recebe as caixas previstas pelo modelo correspondente.
 
    ```bash
    python run_agent.py \
@@ -81,18 +69,13 @@ formas principais de habilitar esse recurso:
      --visualizations-dir saidas_visuais
    ```
 
-2. **No script `meu_agente.py`**, ajuste a constante `VISUALIZATIONS_DIR` para apontar o diretório desejado
-   (ou defina-a como `None` para desabilitar a exportação). A chamada ao agente produzirá as mesmas pastas por
-   modelo e a imagem da fusão automaticamente.
+2. **Ativar o diretório no script `meu_agente.py`.** Ajuste a constante `VISUALIZATIONS_DIR` para apontar para a pasta desejada ou defina como `None` se quiser desativar a exportação.
 
-### Registrando feedbacks e resultados para versionamento
+### Registrando feedbacks e resultados
 
-Para guardar o histórico das execuções (e fazer upload no GitHub, se desejar), utilize a opção `--log-feedback`.
-Ela cria ou atualiza um arquivo no formato **JSON Lines** (`.jsonl`) com todas as decisões do agente, incluindo
-os caminhos dos modelos, parâmetros e uma anotação opcional (`--feedback-note`). Cada linha representa uma
-execução e pode ser facilmente versionada.
+A flag `--log-feedback` cria ou atualiza um arquivo **JSON Lines** (`.jsonl`) com todas as decisões do agente, incluindo parâmetros e observações opcionais (`--feedback-note`). Cada linha guarda uma execução e pode ser versionada no GitHub.
 
-Você também pode chamar programaticamente a função `export_feedback`:
+Também é possível registrar feedback programaticamente:
 
 ```python
 from lung_nodule_agent import export_feedback
@@ -105,20 +88,20 @@ export_feedback(
 )
 ```
 
-Parâmetros adicionais do CLI:
+### Ajustando parâmetros principais
 
-- `--confidence-threshold`: limiar mínimo de confiança para considerar uma detecção individual (padrão 0.25).
-- `--vote-threshold`: número mínimo de modelos que devem concordar para o veredito "Provável presença de nódulo".
-- `--iou-threshold`: limite de IoU utilizado para mesclar detecções entre modelos (padrão 0.5).
+* `--confidence-threshold` define o limiar mínimo para aceitar uma detecção individual (padrão 0.25).
+* `--vote-threshold` define quantos modelos precisam concordar para emitir "Provável presença de nódulo".
+* `--iou-threshold` define o limite de IoU usado para mesclar detecções (padrão 0.5).
 
-O resultado é salvo em JSON (arquivo especificado em `--output` ou impresso no terminal), incluindo as
-detecções individuais de cada modelo e as detecções agregadas pelo agente.
+Os resultados ficam disponíveis em JSON (arquivo indicado em `--output` ou saída padrão) e trazem as detecções de cada modelo e as detecções agregadas.
 
-#### Compatibilidade com versões do TorchVision
+### Compatibilidade com TorchVision e Ultralytics
 
-Algumas versões mais antigas do TorchVision não expõem as mesmas assinaturas dos construtores usados
-pelos adaptadores. Caso receba erros do tipo `cannot import name 'detr_resnet50'` ou mensagens indicando
-parâmetros desconhecidos (`weights`/`pretrained`), atualize para **torchvision 0.13 ou superior**. As
-últimas alterações no agente tentam detectar automaticamente essas diferenças, mas, se o pacote estiver
-muito desatualizado, é recomendado atualizar (`pip install --upgrade torchvision`) ou fornecer seu próprio
-construtor ao estender os adaptadores.
+Algumas versões antigas do TorchVision expõem construtores diferentes. Se você receber mensagens como `cannot import name 'detr_resnet50'` ou erros envolvendo parâmetros `weights` ou `pretrained`, atualize para **torchvision 0.13 ou superior**. O adaptador tenta instanciar o modelo via TorchVision e, caso não consiga, recorre automaticamente ao `torch.hub` (`facebookresearch/detr`). Na primeira execução pode ocorrer um download com cache em `~/.cache/torch/hub`.
+
+Checkpoints do **Ultralytics RT-DETR** também são aceitos. Quando o adaptador identifica esse formato, ele usa o runtime da Ultralytics. Certifique-se de instalar o pacote `ultralytics` antes de usar pesos RT-DETR.
+
+> ℹ️ **PyTorch 2.6+ e checkpoints customizados**
+>
+> A versão 2.6 do PyTorch passou a usar `weights_only=True` por padrão em `torch.load`, bloqueando classes externas durante a desserialização. Os adaptadores registram automaticamente as classes necessárias e tentam nova carga em modo seguro. Como último recurso (apenas se você confiar no arquivo) o carregamento altera para `weights_only=False` para aceitar checkpoints legados.
