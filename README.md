@@ -68,9 +68,9 @@ Além dos JSONs, é possível produzir imagens anotadas que servem como comprova
 formas principais de habilitar esse recurso:
 
 1. **Na linha de comando**, informe `--visualizations-dir /caminho/saidas`. O script criará automaticamente
-   subdiretórios com o nome de cada modelo (`<nome_do_modelo>/`) e outro chamado `fusion/`. Cada subpasta receberá
-   uma cópia da radiografia com as caixas previstas pelo respectivo modelo; a pasta `fusion/` contém a imagem com
-   todas as detecções agregadas pelo agente.
+   subdiretórios com o nome de cada modelo (por padrão `YOLOv8/`, `DETR/` e `Faster R-CNN/`) e outro chamado `fusion/`.
+   Cada subpasta receberá uma cópia da radiografia com as caixas previstas pelo respectivo modelo; a pasta `fusion/`
+   contém a imagem com todas as detecções agregadas pelo agente.
 
    ```bash
    python run_agent.py \

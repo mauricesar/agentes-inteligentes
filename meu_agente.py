@@ -35,7 +35,7 @@ from lung_nodule_agent import (
 # CONFIGURAÇÕES
 # ---------------------------------------------------------------------------
 YOLOV8_WEIGHTS = Path("C:/Users/Mauricésar/Desktop/extracao/yolov8/best_model.pt")
-#DETR_WEIGHTS = Path("/caminho/para/seu_modelo_detr.pth")
+#DETR_WEIGHTS = Path("C:/Users/Mauricésar/Desktop/extracao/detr/best_model_detr.pt")
 FASTER_RCNN_WEIGHTS = Path("C:/Users/Mauricésar/Desktop/extracao/fasterrcnn/fasterrcnn/fasterrcnn_resnet50_fpn_best.pth")
 
 # Defina o caminho para uma imagem individual OU para um diretório de imagens.

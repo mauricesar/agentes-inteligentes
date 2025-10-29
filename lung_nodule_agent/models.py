@@ -38,12 +38,19 @@ class DetectionResult:
 class BaseModelAdapter:
     """Classe base para adaptadores de modelos de detecção."""
 
-    def __init__(self, model_path: str, confidence_threshold: float = 0.25, device: Optional[str] = None):
+    def __init__(
+        self,
+        model_path: str,
+        confidence_threshold: float = 0.25,
+        device: Optional[str] = None,
+        display_name: Optional[str] = None,
+    ):
         self.model_path = Path(model_path)
         if not self.model_path.exists():
             raise FileNotFoundError(f"Modelo não encontrado em {self.model_path}")
         self.confidence_threshold = confidence_threshold
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+        self.display_name = display_name or self.model_path.stem
 
     def predict(self, image: Image.Image) -> DetectionResult:
         raise NotImplementedError
@@ -56,8 +63,19 @@ class BaseModelAdapter:
 class YOLOv8Adapter(BaseModelAdapter):
     """Adaptador para modelos YOLOv8 treinados com Ultralytics."""
 
-    def __init__(self, model_path: str, confidence_threshold: float = 0.25, device: Optional[str] = None):
-        super().__init__(model_path, confidence_threshold, device)
+    def __init__(
+        self,
+        model_path: str,
+        confidence_threshold: float = 0.25,
+        device: Optional[str] = None,
+        display_name: Optional[str] = None,
+    ):
+        super().__init__(
+            model_path,
+            confidence_threshold,
+            device,
+            display_name=display_name or "YOLOv8",
+        )
         if YOLO is None:
             raise ImportError(
                 "O pacote 'ultralytics' não está instalado. Instale-o para utilizar o adaptador YOLOv8."
@@ -72,13 +90,13 @@ class YOLOv8Adapter(BaseModelAdapter):
                 boxes=np.empty((0, 4), dtype=float),
                 scores=np.empty((0,), dtype=float),
                 labels=np.empty((0,), dtype=int),
-                model_name=self.model_path.stem,
+                model_name=self.display_name,
             )
         first = results[0]
         boxes = first.boxes.xyxy.cpu().numpy() if first.boxes is not None else np.empty((0, 4), dtype=float)
         scores = first.boxes.conf.cpu().numpy() if first.boxes is not None else np.empty((0,), dtype=float)
         labels = first.boxes.cls.cpu().numpy().astype(int) if first.boxes is not None else np.empty((0,), dtype=int)
-        return DetectionResult(boxes=boxes, scores=scores, labels=labels, model_name=self.model_path.stem)
+        return DetectionResult(boxes=boxes, scores=scores, labels=labels, model_name=self.display_name)
 
 
 def _instantiate_torchvision_model(model_fn, num_classes: Optional[int]):
@@ -108,8 +126,9 @@ class _TorchVisionDetectionAdapter(BaseModelAdapter):
         confidence_threshold: float = 0.25,
         device: Optional[str] = None,
         num_classes: Optional[int] = None,
+        display_name: Optional[str] = None,
     ):
-        super().__init__(model_path, confidence_threshold, device)
+        super().__init__(model_path, confidence_threshold, device, display_name=display_name)
         self.model = (
             model_ctor(num_classes=num_classes)
             if num_classes is not None
@@ -142,7 +161,7 @@ class _TorchVisionDetectionAdapter(BaseModelAdapter):
         boxes = output["boxes"].detach().cpu().numpy()[keep]
         scores = scores[keep]
         labels = output["labels"].detach().cpu().numpy()[keep].astype(int)
-        return DetectionResult(boxes=boxes, scores=scores, labels=labels, model_name=self.model_path.stem)
+        return DetectionResult(boxes=boxes, scores=scores, labels=labels, model_name=self.display_name)
 
 
 def _import_detr_resnet50():
@@ -175,7 +194,14 @@ def _import_detr_resnet50():
 class DETRAdapter(_TorchVisionDetectionAdapter):
     """Adaptador para modelos DETR fine-tunados."""
 
-    def __init__(self, model_path: str, confidence_threshold: float = 0.25, device: Optional[str] = None, num_classes: int = 2):
+    def __init__(
+        self,
+        model_path: str,
+        confidence_threshold: float = 0.25,
+        device: Optional[str] = None,
+        num_classes: int = 2,
+        display_name: Optional[str] = None,
+    ):
         detr_resnet50 = _import_detr_resnet50()
 
         super().__init__(
@@ -186,6 +212,7 @@ class DETRAdapter(_TorchVisionDetectionAdapter):
             confidence_threshold=confidence_threshold,
             device=device,
             num_classes=num_classes,
+            display_name=display_name or "DETR",
         )
 
 
@@ -199,6 +226,7 @@ class FasterRCNNAdapter(_TorchVisionDetectionAdapter):
         device: Optional[str] = None,
         num_classes: int = 2,
         backbone: str = "resnet50",
+        display_name: Optional[str] = None,
     ):
         from torchvision.models.detection import fasterrcnn_resnet50_fpn
 
@@ -212,4 +240,5 @@ class FasterRCNNAdapter(_TorchVisionDetectionAdapter):
             confidence_threshold=confidence_threshold,
             device=device,
             num_classes=num_classes,
+            display_name=display_name or "Faster R-CNN",
         )
